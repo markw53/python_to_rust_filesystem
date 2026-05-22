@@ -1,6 +1,5 @@
 use filesystem_delta::{apply_patch, compute_delta, create_snapshot};
 use std::fs;
-use std::path::Path;
 use tempfile::tempdir;
 
 #[test]

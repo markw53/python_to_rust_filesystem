@@ -12,4 +12,3 @@ fn test_normalize_backslashes() {
     let p = Path::new("a\\b\\c");
     assert_eq!(normalize_path(p), "a/b/c");
 }
-

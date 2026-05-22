@@ -1,56 +1,66 @@
 use filesystem_delta::{compute_delta, create_snapshot};
 use std::fs;
+use std::os::unix::fs::symlink;
+use tempfile::tempdir;
 
 #[test]
 fn test_symlink_create() {
-    fs::create_dir("src").unwrap();
-    fs::create_dir("dst").unwrap();
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
 
-    std::os::unix::fs::symlink("t.txt", "dst/link").unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
 
-    let ops = compute_delta(create_snapshot("src"), create_snapshot("dst"));
+    symlink("t.txt", dst.join("link")).unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(src.to_str().unwrap()),
+        create_snapshot(dst.to_str().unwrap()),
+    );
 
     assert!(ops.iter().any(|o| o.op == "symlink" && o.path == "link"));
-
-    fs::remove_file("dst/link").unwrap();
-    fs::remove_dir("src").unwrap();
-    fs::remove_dir("dst").unwrap();
 }
 
 #[test]
 fn test_symlink_delete() {
-    fs::create_dir("src").unwrap();
-    fs::create_dir("dst").unwrap();
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
 
-    std::os::unix::fs::symlink("t.txt", "src/link").unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
 
-    let ops = compute_delta(create_snapshot("src"), create_snapshot("dst"));
+    symlink("t.txt", src.join("link")).unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(src.to_str().unwrap()),
+        create_snapshot(dst.to_str().unwrap()),
+    );
 
     assert!(ops
         .iter()
         .any(|o| o.op == "delete_file" && o.path == "link"));
-
-    fs::remove_file("src/link").unwrap();
-    fs::remove_dir("src").unwrap();
-    fs::remove_dir("dst").unwrap();
 }
 
 #[test]
 fn test_symlink_target_change() {
-    fs::create_dir("src").unwrap();
-    fs::create_dir("dst").unwrap();
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
 
-    std::os::unix::fs::symlink("a.txt", "src/link").unwrap();
-    std::os::unix::fs::symlink("b.txt", "dst/link").unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
 
-    let ops = compute_delta(create_snapshot("src"), create_snapshot("dst"));
+    symlink("a.txt", src.join("link")).unwrap();
+    symlink("b.txt", dst.join("link")).unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(src.to_str().unwrap()),
+        create_snapshot(dst.to_str().unwrap()),
+    );
 
     assert!(ops
         .iter()
         .any(|o| o.op == "symlink" && o.path == "link" && o.target.as_deref() == Some("b.txt")));
-
-    fs::remove_file("src/link").unwrap();
-    fs::remove_file("dst/link").unwrap();
-    fs::remove_dir("src").unwrap();
-    fs::remove_dir("dst").unwrap();
 }

@@ -1,40 +1,45 @@
 use filesystem_delta::{compute_delta, create_snapshot};
 use std::fs;
+use tempfile::tempdir;
 
 #[test]
 fn test_modify_file_hash_change() {
-    fs::create_dir("src").unwrap();
-    fs::create_dir("dst").unwrap();
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
 
-    fs::write("src/a.txt", "one").unwrap();
-    fs::write("dst/a.txt", "two").unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
 
-    let ops = compute_delta(create_snapshot("src"), create_snapshot("dst"));
+    fs::write(src.join("a.txt"), "one").unwrap();
+    fs::write(dst.join("a.txt"), "two").unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(src.to_str().unwrap()),
+        create_snapshot(dst.to_str().unwrap()),
+    );
 
     assert!(ops
         .iter()
         .any(|o| o.op == "modify_file" && o.path == "a.txt"));
-
-    fs::remove_file("src/a.txt").unwrap();
-    fs::remove_file("dst/a.txt").unwrap();
-    fs::remove_dir("src").unwrap();
-    fs::remove_dir("dst").unwrap();
 }
 
 #[test]
 fn test_modify_file_no_change() {
-    fs::create_dir("src").unwrap();
-    fs::create_dir("dst").unwrap();
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
 
-    fs::write("src/a.txt", "same").unwrap();
-    fs::write("dst/a.txt", "same").unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
 
-    let ops = compute_delta(create_snapshot("src"), create_snapshot("dst"));
+    fs::write(src.join("a.txt"), "same").unwrap();
+    fs::write(dst.join("a.txt"), "same").unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(src.to_str().unwrap()),
+        create_snapshot(dst.to_str().unwrap()),
+    );
 
     assert!(ops.is_empty());
-
-    fs::remove_file("src/a.txt").unwrap();
-    fs::remove_file("dst/a.txt").unwrap();
-    fs::remove_dir("src").unwrap();
-    fs::remove_dir("dst").unwrap();
 }

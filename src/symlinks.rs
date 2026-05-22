@@ -1,13 +1,7 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub fn read_symlink(path: &str) -> Option<String> {
-    let p = Path::new(path);
-    if p.is_symlink() {
-        fs::read_link(p)
-            .ok()
-            .map(|t| t.to_string_lossy().to_string())
-    } else {
-        None
-    }
+pub fn read_symlink(path: &std::path::Path) -> std::io::Result<String> {
+    let target = std::fs::read_link(path)?;
+    Ok(target.to_string_lossy().to_string())
 }

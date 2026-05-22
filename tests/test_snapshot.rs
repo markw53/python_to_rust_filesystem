@@ -1,13 +1,18 @@
 use filesystem_delta::create_snapshot;
 use filesystem_delta::filetypes::FileType;
 use std::fs;
+use std::os::unix::fs::symlink;
+use tempfile::tempdir;
 
 #[test]
 fn test_snapshot_simple() {
-    fs::create_dir("d").unwrap();
-    fs::write("d/a.txt", "hello").unwrap();
+    let tmp = tempdir().unwrap();
+    let d = tmp.path().join("d");
 
-    let snap = create_snapshot("d");
+    fs::create_dir(&d).unwrap();
+    fs::write(d.join("a.txt"), "hello").unwrap();
+
+    let snap = create_snapshot(d.to_str().unwrap());
 
     assert_eq!(snap.entries.len(), 1);
     let e = &snap.entries[0];
@@ -19,16 +24,21 @@ fn test_snapshot_simple() {
 
 #[test]
 fn test_snapshot_symlink() {
-    fs::write("real.txt", "x").unwrap();
-    std::os::unix::fs::symlink("real.txt", "link").unwrap();
+    let tmp = tempdir().unwrap();
 
-    let snap = create_snapshot(".");
+    let real = tmp.path().join("real.txt");
+    let link = tmp.path().join("link");
 
-    let link = snap.entries.iter().find(|e| e.path == "link").unwrap();
-    assert_eq!(link.file_type, FileType::Symlink);
-    assert_eq!(link.target.as_deref(), Some("real.txt"));
+    fs::write(&real, "x").unwrap();
+    symlink(&real, &link).unwrap();
 
-    fs::remove_file("real.txt").unwrap();
-    fs::remove_file("link").unwrap();
+    let snap = create_snapshot(tmp.path().to_str().unwrap());
+
+    let link_entry = snap.entries.iter().find(|e| e.path == "link").unwrap();
+
+    assert_eq!(link_entry.file_type, FileType::Symlink);
+    assert_eq!(
+        link_entry.target.as_deref(),
+        Some(real.to_string_lossy().as_ref())
+    );
 }
-
