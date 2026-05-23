@@ -18,3 +18,7 @@ tempfile = "3"
 [lib]
 name = "filesystem_delta"
 path = "src/lib.rs"
+
+[[bin]]
+name = "filesystem-delta"
+path = "src/main.rs"

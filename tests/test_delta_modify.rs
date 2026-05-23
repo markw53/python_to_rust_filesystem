@@ -43,3 +43,47 @@ fn test_modify_file_no_change() {
 
     assert!(ops.is_empty());
 }
+
+#[test]
+fn test_type_change_file_to_dir() {
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
+
+    fs::write(src.join("x"), "hello").unwrap();
+    fs::create_dir(dst.join("x")).unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(src.to_str().unwrap()),
+    );
+
+    assert_eq!(ops[0].op, "delete_file");
+    assert_eq!(ops[1].op, "create_dir");
+    assert_eq!(ops[0].path, "x");
+    assert_eq!(ops[1].path, "x");
+}
+
+#[test]
+fn test_type_change_dir_to_file() {
+    let tmp = tempdir().unwrap();
+    let src = tmp.path().join("src");
+    let dst = tmp.path().join("dst");
+    fs::create_dir(&src).unwrap();
+    fs::create_dir(&dst).unwrap();
+
+    fs::create_dir(src.join("x")).unwrap();
+    fs::write(dst.join("x"), "hello").unwrap();
+
+    let ops = compute_delta(
+        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(src.to_str().unwrap()),
+    );
+
+    assert_eq!(ops[0].op, "delete_dir");
+    assert_eq!(ops[1].op, "create_file");
+    assert_eq!(ops[0].path, "x");
+    assert_eq!(ops[1].path, "x");
+}

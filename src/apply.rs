@@ -104,11 +104,16 @@ pub fn apply_patch(root: &str, mut ops: Vec<PatchOp>) -> io::Result<()> {
         println!("APPLY {:?} → {:?}", op.op, full);
 
         match op.op.as_str() {
-            "file" | "modify_file" => {
+            "file" | "create_file" => {
                 ensure_parent(&full)?;
                 remove_if_exists(&full)?;
                 fs::write(&full, op.contents.clone().unwrap_or_default())?;
                 apply_metadata(&full, op.mode, op.mtime)?;
+            }
+
+            "modify_file" => {
+                ensure_parent(&full)?;
+                fs::write(&full, b"")?; // truncate to zero bytes, matching Python
             }
 
             "create_dir" => {
@@ -130,7 +135,8 @@ pub fn apply_patch(root: &str, mut ops: Vec<PatchOp>) -> io::Result<()> {
                 ensure_parent(&full)?;
                 remove_if_exists(&full)?;
                 std::os::unix::fs::symlink(op.target.clone().unwrap(), &full)?;
-                apply_metadata(&full, op.mode, op.mtime)?;
+                // Don't call apply_metadata on symlinks — can't chmod a symlink on Linux
+                // and following it to get metadata will loop on circular symlinks
             }
 
             "chmod" => {
@@ -142,7 +148,7 @@ pub fn apply_patch(root: &str, mut ops: Vec<PatchOp>) -> io::Result<()> {
             }
 
             "delete_file" => {
-                if full.exists() {
+                if full.exists() || fs::symlink_metadata(&full).is_ok() {
                     let _ = fs::remove_file(&full);
                 }
             }

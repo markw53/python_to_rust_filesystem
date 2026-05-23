@@ -92,13 +92,28 @@ pub fn compute_delta(desired: Snapshot, current: Snapshot) -> Vec<PatchOp> {
         }
     }
 
+    ops.sort_by_key(|o| {
+        fn depth(p: &str) -> usize {
+            p.chars().filter(|&c| c == '/').count()
+        }
+
+        match o.op.as_str() {
+            "delete_file" | "delete_dir" => {
+                // deepest first: negate depth using large number minus depth
+                (0u8, 100usize.saturating_sub(depth(&o.path)), o.path.clone())
+            }
+            "create_dir" | "create_file" | "symlink" => (1u8, depth(&o.path), o.path.clone()),
+            _ => (2u8, 0usize, o.path.clone()),
+        }
+    });
+
     ops
 }
 
 fn create_from_entry(e: &SnapshotEntry) -> PatchOp {
     match e.file_type {
         FileType::File => PatchOp {
-            op: "file".into(),
+            op: "create_file".into(),
             path: e.path.clone(),
             contents: e.contents.clone(),
             target: None,

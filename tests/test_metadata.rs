@@ -13,3 +13,16 @@ fn test_extract_metadata_file() {
     assert!(extract_mode(&meta).is_some());
     assert!(extract_mtime(&meta).is_some());
 }
+
+#[test]
+fn test_extract_metadata_dir() {
+    let tmp = tempdir().unwrap();
+    let d = tmp.path().join("folder");
+    fs::create_dir(&d).unwrap();
+
+    let meta = fs::symlink_metadata(&d).unwrap();
+    assert!(extract_mode(&meta).is_some());
+    assert!(extract_mtime(&meta).is_some());
+    // dirs have no meaningful size in this implementation
+    assert!(meta.is_dir());
+}
