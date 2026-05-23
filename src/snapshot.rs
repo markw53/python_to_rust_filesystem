@@ -25,13 +25,14 @@ pub fn create_snapshot(root: &str) -> Snapshot {
     let root_path = PathBuf::from(root);
 
     for entry in walk(&root_path) {
-        let rel = entry
-            .strip_prefix(&root_path)
-            .unwrap()
-            .to_string_lossy()
-            .trim_start_matches('/')
-            .trim_start_matches("./")
-            .to_string();
+        let rel = entry.strip_prefix(&root_path).unwrap();
+        let rel = rel.to_string_lossy().to_string();
+
+        // ⭐ DO NOT include the root directory in the snapshot
+        if rel.is_empty() {
+            continue;
+        }
+
         let md = fs::symlink_metadata(&entry).unwrap();
         let mode = Some(md.mode());
         let mtime = Some(md.mtime() as u64);
@@ -78,40 +79,18 @@ pub fn create_snapshot(root: &str) -> Snapshot {
 
 fn walk(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    if !root.exists() {
-        return out;
-    }
-
     let mut stack = vec![root.to_path_buf()];
 
     while let Some(path) = stack.pop() {
-        // Skip the root itself
-        if path != root {
-            out.push(path.clone());
-        }
+        out.push(path.clone());
 
-        // Robust directory read with retry
-        if path.is_dir() {
-            for _ in 0..5 {
-                if let Ok(read) = fs::read_dir(&path) {
-                    let mut children = Vec::new();
-                    for entry in read {
-                        if let Ok(e) = entry {
-                            children.push(e.path());
-                        }
-                    }
-
-                    // If we saw entries, use them
-                    if !children.is_empty() {
-                        for child in children {
-                            stack.push(child);
-                        }
-                        break;
-                    }
+        // Use symlink_metadata so we don't follow symlinks into dirs
+        if let Ok(md) = fs::symlink_metadata(&path) {
+            if md.is_dir() {
+                // true only for real dirs, not symlinks-to-dirs
+                for entry in fs::read_dir(&path).unwrap() {
+                    stack.push(entry.unwrap().path());
                 }
-
-                // Directory entry not visible yet — wait a moment
-                std::thread::sleep(std::time::Duration::from_millis(5));
             }
         }
     }
@@ -119,4 +98,3 @@ fn walk(root: &Path) -> Vec<PathBuf> {
     out.sort();
     out
 }
-

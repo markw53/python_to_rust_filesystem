@@ -5,41 +5,41 @@ use tempfile::tempdir;
 #[test]
 fn test_edge_case_empty_dirs() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
     );
 
-    apply_patch(src.to_str().unwrap(), ops).unwrap();
+    apply_patch(desired.to_str().unwrap(), ops).unwrap();
 
-    assert!(src.exists());
+    assert!(desired.exists());
 }
 
 #[test]
 fn test_edge_case_nested() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
 
-    let nested = dst.join("a/b/c");
+    let nested = current.join("a/b/c");
     fs::create_dir_all(&nested).unwrap();
     fs::write(nested.join("file.txt"), "x").unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
     );
 
-    apply_patch(src.to_str().unwrap(), ops).unwrap();
+    apply_patch(desired.to_str().unwrap(), ops).unwrap();
 
-    assert!(src.join("a/b/c/file.txt").exists());
+    assert!(desired.join("a/b/c/file.txt").exists());
 }

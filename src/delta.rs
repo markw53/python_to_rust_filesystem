@@ -2,26 +2,29 @@ use crate::filetypes::FileType;
 use crate::patchop::PatchOp;
 use crate::snapshot::{Snapshot, SnapshotEntry};
 
-pub fn compute_delta(src: Snapshot, dst: Snapshot) -> Vec<PatchOp> {
+pub fn compute_delta(desired: Snapshot, current: Snapshot) -> Vec<PatchOp> {
     let mut ops = Vec::new();
 
-    let src_map = src
+    let desired_map = desired
         .entries
         .into_iter()
         .map(|e| (e.path.clone(), e))
         .collect::<std::collections::HashMap<_, _>>();
-    let dst_map = dst
+    let current_map = current
         .entries
         .into_iter()
         .map(|e| (e.path.clone(), e))
         .collect::<std::collections::HashMap<_, _>>();
 
-    // Deletions + modifications
-    for (path, s) in src_map.iter() {
-        if let Some(d) = dst_map.get(path) {
-            match (&s.file_type, &d.file_type) {
+    // Creations + modifications: walk desired, compare to current
+    for (path, d) in desired_map.iter() {
+        if path.is_empty() {
+            continue;
+        }
+        if let Some(c) = current_map.get(path) {
+            match (&d.file_type, &c.file_type) {
                 (FileType::File, FileType::File) => {
-                    if s.contents != d.contents {
+                    if d.contents != c.contents {
                         ops.push(PatchOp {
                             op: "modify_file".into(),
                             path: path.clone(),
@@ -30,11 +33,34 @@ pub fn compute_delta(src: Snapshot, dst: Snapshot) -> Vec<PatchOp> {
                             mode: d.mode,
                             mtime: d.mtime,
                         });
+                    } else {
+                        if d.mode != c.mode {
+                            ops.push(PatchOp {
+                                op: "chmod".into(),
+                                path: path.clone(),
+                                contents: None,
+                                target: None,
+                                mode: d.mode,
+                                mtime: None,
+                            });
+                        }
+                        if d.mtime != c.mtime {
+                            ops.push(PatchOp {
+                                op: "utimes".into(),
+                                path: path.clone(),
+                                contents: None,
+                                target: None,
+                                mode: None,
+                                mtime: d.mtime,
+                            });
+                        }
                     }
                 }
+
                 (FileType::Directory, FileType::Directory) => {}
+
                 (FileType::Symlink, FileType::Symlink) => {
-                    if s.target != d.target {
+                    if d.target != c.target {
                         ops.push(PatchOp {
                             op: "symlink".into(),
                             path: path.clone(),
@@ -45,35 +71,28 @@ pub fn compute_delta(src: Snapshot, dst: Snapshot) -> Vec<PatchOp> {
                         });
                     }
                 }
+
                 _ => {
-                    ops.push(delete_op(path));
-                    ops.push(create_from_entry(d));
+                    ops.push(delete_op_entry(c)); // delete old (current) type
+                    ops.push(create_from_entry(d)); // create new (desired) type
                 }
             }
         } else {
-            ops.push(delete_op(path));
-        }
-    }
-
-    // Creations
-    for (path, d) in dst_map.iter() {
-        if !src_map.contains_key(path) {
             ops.push(create_from_entry(d));
         }
     }
 
-    ops
-}
-
-fn delete_op(path: &str) -> PatchOp {
-    PatchOp {
-        op: "delete_file".into(),
-        path: path.into(),
-        contents: None,
-        target: None,
-        mode: None,
-        mtime: None,
+    // Deletions: anything in current but not desired
+    for (path, c) in current_map.iter() {
+        if path.is_empty() {
+            continue;
+        }
+        if !desired_map.contains_key(path) {
+            ops.push(delete_op_entry(c));
+        }
     }
+
+    ops
 }
 
 fn create_from_entry(e: &SnapshotEntry) -> PatchOp {
@@ -87,7 +106,7 @@ fn create_from_entry(e: &SnapshotEntry) -> PatchOp {
             mtime: e.mtime,
         },
         FileType::Directory => PatchOp {
-            op: "mkdir".into(),
+            op: "create_dir".into(),
             path: e.path.clone(),
             contents: None,
             target: None,
@@ -101,6 +120,35 @@ fn create_from_entry(e: &SnapshotEntry) -> PatchOp {
             contents: None,
             mode: e.mode,
             mtime: e.mtime,
+        },
+    }
+}
+
+fn delete_op_entry(e: &SnapshotEntry) -> PatchOp {
+    match e.file_type {
+        FileType::File => PatchOp {
+            op: "delete_file".into(),
+            path: e.path.clone(),
+            contents: None,
+            target: None,
+            mode: None,
+            mtime: None,
+        },
+        FileType::Directory => PatchOp {
+            op: "delete_dir".into(),
+            path: e.path.clone(),
+            contents: None,
+            target: None,
+            mode: None,
+            mtime: None,
+        },
+        FileType::Symlink => PatchOp {
+            op: "delete_file".into(),
+            path: e.path.clone(),
+            contents: None,
+            target: None,
+            mode: None,
+            mtime: None,
         },
     }
 }

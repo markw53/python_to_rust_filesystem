@@ -25,10 +25,10 @@ fn test_delta_create_delete() {
     let mut creates = 0;
 
     for op in ops {
-        if op.op == "delete" {
+        if op.op == "delete_file" || op.op == "delete_dir" {
             deletes += 1;
         }
-        if op.op == "create_file" {
+        if op.op == "file" {
             creates += 1;
         }
     }

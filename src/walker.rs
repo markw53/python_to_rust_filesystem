@@ -21,10 +21,12 @@ pub fn walk(root: &str) -> Vec<String> {
             out.push(rel);
         }
 
-        if path.is_dir() {
-            if let Ok(read) = fs::read_dir(&path) {
-                for entry in read.flatten() {
-                    stack.push(entry.path());
+        if let Ok(md) = fs::symlink_metadata(&path) {
+            if md.is_dir() {
+                if let Ok(read) = fs::read_dir(&path) {
+                    for entry in read.flatten() {
+                        stack.push(entry.path());
+                    }
                 }
             }
         }

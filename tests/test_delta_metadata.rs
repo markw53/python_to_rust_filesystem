@@ -6,22 +6,22 @@ use tempfile::tempdir;
 #[test]
 fn test_chmod_change() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
 
-    fs::write(src.join("a.txt"), "x").unwrap();
-    fs::write(dst.join("a.txt"), "x").unwrap();
+    fs::write(desired.join("a.txt"), "x").unwrap();
+    fs::write(current.join("a.txt"), "x").unwrap();
 
-    let mut perms = fs::metadata(dst.join("a.txt")).unwrap().permissions();
+    let mut perms = fs::metadata(current.join("a.txt")).unwrap().permissions();
     perms.set_mode(0o777);
-    fs::set_permissions(dst.join("a.txt"), perms).unwrap();
+    fs::set_permissions(current.join("a.txt"), perms).unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
     );
 
     assert!(ops.iter().any(|o| o.op == "chmod" && o.path == "a.txt"));
@@ -30,24 +30,22 @@ fn test_chmod_change() {
 #[test]
 fn test_utimes_change() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
 
-    fs::write(src.join("a.txt"), "x").unwrap();
-    fs::write(dst.join("a.txt"), "x").unwrap();
+    fs::write(desired.join("a.txt"), "x").unwrap();
+    fs::write(current.join("a.txt"), "x").unwrap();
 
-    // Force metadata change
-    let meta = fs::metadata(dst.join("a.txt")).unwrap();
-    let mut perms = meta.permissions();
-    perms.set_mode(meta.permissions().mode());
-    fs::set_permissions(dst.join("a.txt"), perms).unwrap();
+    // Force a real mtime difference (1 hour earlier).
+    let earlier = filetime::FileTime::from_unix_time(1_000_000_000, 0);
+    filetime::set_file_mtime(current.join("a.txt"), earlier).unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
     );
 
     assert!(ops.iter().any(|o| o.op == "utimes" && o.path == "a.txt"));

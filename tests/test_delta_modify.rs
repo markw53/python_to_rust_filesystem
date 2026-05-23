@@ -5,18 +5,18 @@ use tempfile::tempdir;
 #[test]
 fn test_modify_file_hash_change() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
 
-    fs::write(src.join("a.txt"), "one").unwrap();
-    fs::write(dst.join("a.txt"), "two").unwrap();
+    fs::write(desired.join("a.txt"), "one").unwrap();
+    fs::write(current.join("a.txt"), "two").unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
     );
 
     assert!(ops
@@ -27,18 +27,18 @@ fn test_modify_file_hash_change() {
 #[test]
 fn test_modify_file_no_change() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
 
-    fs::write(src.join("a.txt"), "same").unwrap();
-    fs::write(dst.join("a.txt"), "same").unwrap();
+    fs::write(desired.join("a.txt"), "same").unwrap();
+    fs::write(current.join("a.txt"), "same").unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
     );
 
     assert!(ops.is_empty());

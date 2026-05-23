@@ -5,39 +5,39 @@ use tempfile::tempdir;
 #[test]
 fn test_apply_create_file() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
-    fs::write(dst.join("a.txt"), "x").unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
+    fs::write(current.join("a.txt"), "x").unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()), // desired
+        create_snapshot(desired.to_str().unwrap()), // current
     );
 
-    apply_patch(src.to_str().unwrap(), ops).unwrap();
+    apply_patch(desired.to_str().unwrap(), ops).unwrap();
 
-    assert!(src.join("a.txt").is_file());
+    assert!(desired.join("a.txt").is_file());
 }
 
 #[test]
 fn test_apply_delete_file() {
     let tmp = tempdir().unwrap();
-    let src = tmp.path().join("src");
-    let dst = tmp.path().join("dst");
+    let desired = tmp.path().join("desired");
+    let current = tmp.path().join("current");
 
-    fs::create_dir(&src).unwrap();
-    fs::create_dir(&dst).unwrap();
-    fs::write(src.join("a.txt"), "x").unwrap();
+    fs::create_dir(&desired).unwrap();
+    fs::create_dir(&current).unwrap();
+    fs::write(desired.join("a.txt"), "x").unwrap();
 
     let ops = compute_delta(
-        create_snapshot(src.to_str().unwrap()),
-        create_snapshot(dst.to_str().unwrap()),
+        create_snapshot(current.to_str().unwrap()),
+        create_snapshot(desired.to_str().unwrap()),
     );
 
-    apply_patch(src.to_str().unwrap(), ops).unwrap();
+    apply_patch(desired.to_str().unwrap(), ops).unwrap();
 
-    assert!(!src.join("a.txt").exists());
+    assert!(!desired.join("a.txt").exists());
 }
