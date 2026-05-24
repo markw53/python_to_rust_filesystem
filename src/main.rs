@@ -18,7 +18,7 @@ fn main() -> Result<()> {
 
             let snap_src = create_snapshot(&src);
             let snap_dst = create_snapshot(&dst);
-            let ops = compute_delta(snap_src, snap_dst);
+            let ops = compute_delta(snap_dst, snap_src);
 
             let data = serde_json::to_string_pretty(&ops).context("Failed to serialize ops")?;
             std::fs::write(&out, data).context("Failed to write output file")?;
